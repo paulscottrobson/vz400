@@ -129,6 +129,12 @@ static void _Write(WORD16 address,BYTE8 data) {
 		//	 	POKE 4096,1 turns on 33Mhz mode.
 		//
 		if (address == 0x1000) highSpeed = (data != 0); 		
+		//
+		// 		POKE 4352... sets palette
+		//
+		if ((address & 0xFF00) == 0x1100) {
+			HWSetPalette((address >> 2) & 0x3F,address & 0x03,data);			
+		}
 	}
 }
 

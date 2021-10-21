@@ -47,7 +47,7 @@ static void DGBXRenderGraphicsLine(int y,int x1,int y1,int xSize,int ySize);
 //										 Palette conversion to 4 bit format
 // *******************************************************************************************************************************
 
-#define PCV(n) 		(((n)+8) >> 4)
+#define PCV(n) 		((n) >> 4)
 
 static int DBGXPalette(BYTE8 colour) {
 	BYTE8 *p = HWGetPalette(colour);

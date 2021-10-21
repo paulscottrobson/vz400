@@ -1,0 +1,48 @@
+Changes
+=======
+
+Case of Text Display
+	It uses a lower case character set which I think looks nicer generally. This can be fixed back by changing
+			CharacterROMAlt.new.export_include("_char_rom.h")
+	in export.rb to
+			CharacterROM.new.export_include("_char_rom.h")
+
+CLOAD "xxxx" 
+	loads xxxx.vz from either the storage folder under the emulator (PC) or Flash Data Storage (ESP32), and runs it if it is machine code.
+
+POKE 4096,1 
+	Engages high speed mode, which is 33Mhz on a PC, and up to 33Mhz on the ESP32, it's probably only slightly quicker in practice.
+	This can be useful for very long initialisation times as it has no effect on a real machine.
+
+POKE 4352+c*4+t,n 
+	Sets colour c palette entry t to 0-255. ESP32 will approximate it as it is 2 bit colour.
+		t = 0 Red 1 Green 2 Blue
+		c = 0..7 represent the colours in semigraphics / mode 1
+		c = 12..15 are dark/bright green and dark/bright orange for text.
+
+	This is not meant for flashy effects, but to allow a game to nondestructively have a better palette. However, the game should work with the
+	default colour scheme, so it still works on a real machine, albeit in the 6847 colour scheme.
+
+Flashing effects 
+	caused by changing the mode and thus the colour scheme will work, but only at one change per frame, and on the ESP32 may result in some 
+	slowdown because it repaints the whole display.	The same applies to palette effects.
+
+Sound
+	The sound is calculated on an average per frame basis, so any PCM efforts will not work.
+
+Split screens
+	Any games which change the 6847 mode half way down will not work (and will drive it up the wall).
+
+Issues
+	The boot prompt has changed slightly.
+
+	CSAVE does not work at present.
+
+Hardware
+	The project should run on any FABGL compatible hardware. The cheapest is a "LilyGo TTGO VGA32" board which are a few pounds and accept PS/2 and VGA connections
+	(you will need a USB to PS/2 adaptor to run a USB keyboard). There are several versions, some do not have sound, and some do not have an SDCard socket 
+	(this is not currently used). It also has a jack socket not a piezo buzzer or speaker for audio. Not having the sound will not affect program behaviour other than
+	(obviously) you won't hear the sound. Which might be a blessing.
+
+	
+

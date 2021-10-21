@@ -28,6 +28,8 @@ static uint8_t rawPixels[PALETTE_SIZE];
 #define XOFFSET 32
 #define YOFFSET 24
 
+void HWXClearScreen(int colour);
+
 // ****************************************************************************
 //
 //						Initialise video subsystem
@@ -45,6 +47,11 @@ void HWESPVideoInitialise(void) {
 	DisplayController.setResolution(QVGA_320x240_60Hz);
 	DisplayController.enableBackgroundPrimitiveExecution(false);
 
+	HWXClearScreen(0);
+}
+
+void HWXClearScreen(int colour) { 
+
 	for (int i = 0;i < PALETTE_SIZE;i++) {
 		BYTE8 *col = HWGetPalette(i);
 		pColours[i].R = col[0];
@@ -53,13 +60,6 @@ void HWESPVideoInitialise(void) {
 	 	rawPixels[i] = DisplayController.createRawPixel(RGB222(pColours[i].R>>6,pColours[i].G>>6,pColours[i].B>>6));
 	}
 
-	for (int x = 0;x < 320;x++)
-		for (int y = 0;y < 192;y++)
-			DisplayController.setRawPixel(x,y,rawPixels[(x >> 4) & 15]);
-
-}
-
-void HWXClearScreen(int colour) { 
 	for (int x = 0;x < DWIDTH;x++)
 		for (int y = 0;y < DHEIGHT;y++)
 			DisplayController.setRawPixel(x,y,rawPixels[colour]);

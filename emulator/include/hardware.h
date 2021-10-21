@@ -19,6 +19,7 @@ void HWWritePort(WORD16 addr,BYTE8 data);
 void HWWriteControlLatch(BYTE8 data);
 BYTE8 HWGetVideoMode(void);
 BYTE8 *HWGetPalette(BYTE8 colour);
+void HWSetPalette(BYTE8 colour,BYTE8 channel,BYTE8 level);
 BYTE8 HWReadKeyboardPort(WORD16 addr);
 void HWLoadProgram(void);
 BYTE8 HWGetBackgroundPalette(void);

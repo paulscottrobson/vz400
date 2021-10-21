@@ -270,6 +270,15 @@ BYTE8 *HWGetPalette(BYTE8 colour) {
 	return _6847_palette[colour];
 }
 
+#include <stdio.h>
+
+void HWSetPalette(BYTE8 colour,BYTE8 channel,BYTE8 level) {
+	if (colour < 16 and channel < 3) {
+		printf("%d %d %d\n",colour,channel,level);
+		_6847_palette[colour][channel] = level;
+		HWInvalidateScreen();
+	}
+}
 // *******************************************************************************************************************************
 // 													6847 Video Mode Access
 // *******************************************************************************************************************************

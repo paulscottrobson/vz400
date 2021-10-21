@@ -233,6 +233,10 @@ case 0xbb: /**** $bb:otdr ****/
 	do { OUTPORT(C,READ8(HL())); B--; DECHL(); SETNZ(B); SETNFLAG(1); cycles+=21; } while (B != 0);;
 	cycles -= 16;break;
 
+case 0xfe: /**** $fe:prompt ****/
+	{ H = 0xF0;L = 0x00; const char *msg = "VIDEO TECHNOLOGY VZ400\rBY PAUL ROBSON 21-10-2021\rBASIC V2.0\r"; int i = -1; do { i++; CPUWriteMemory(0xF000+i,msg[i]); } while (msg[i] != 0); };
+	cycles -= 1;break;
+
 case 0xff: /**** $ff:load ****/
 	HWLoadProgram();
 	cycles -= 1;break;
