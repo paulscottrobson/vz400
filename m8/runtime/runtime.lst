@@ -1,0 +1,895 @@
+              	; --------------------------------------
+              	; zasm: assemble "runtime.asm"
+              	; date: 2021-10-21 13:30:59
+              	; --------------------------------------
+
+
+              	; ***************************************************************************************
+              	; ***************************************************************************************
+              	;
+              	;		Name : 		runtime.asm
+              	;		Author :	Paul Robson (paul@robsons.org.uk)
+              	;		Date : 		21st October 2021
+              	;		Purpose :	Binary operators (A ? B -> A)
+              	;
+              	; ***************************************************************************************
+              	; ***************************************************************************************
+              	
+              	
+8000:         			.org 	$8000
+              			;
+              			; 		This is patch to kickstart
+              			;
+8000:         	start:		
+8000: C30080  			jp 		$8000  						; +0 	vector to main program (patched)
+8003: 0900    			.dw 	Dictionary-start 			; +3 	offset to dictionary list.
+              			;
+              			; 		Data area
+              			;
+8005:         	seed1:
+8005: 3930    			.dw 	12345
+8007:         	seed2:
+8007: 31D4    			.dw 	54321		
+              	
+              			;
+              			; 		Dictionary included here.
+              			;
+8009:         	Dictionary:		
+              			.include "_built.asm"
+              	
+              	
+8009: 1A00    	 .dw end1000-$
+800B: 3C00    	 .db '<',0
+800D: FF      	 .db $FF
+800E:         	start1000:
+800E: 7C      	 ld   a,h           ; check if signs different.
+800F: AA      	 xor  d
+8010: 87      	 add  a,a          ; CS if different
+8011: 3004    	 jr   nc,__less_samesign
+8013: 7A      	 ld   a,d          ; different. set CS to sign of B
+8014: 87      	 add  a,a          ; if set (negative) B must be < A as A is +ve
+8015: 1805    	 jr   __less_returnc
+8017:         	__less_samesign:
+8017: D5      	 push  de           ; save DE
+8018: EB      	 ex   de,hl          ; -1 if B < A
+8019: ED52    	 sbc  hl,de          ; calculate B - A , hencs CS if < (Carry clear by add a,a)
+801B: D1      	 pop  de           ; restore DE
+801C:         	__less_returnc:
+801C: 3E00    	 ld   a,0          ; A 0
+801E: DE00    	 sbc  a,0          ; A $FF if CS.
+8020: 6F      	 ld   l,a          ; put in HL
+8021: 67      	 ld   h,a
+8022: C9      	 ret
+              	
+              	
+              	
+8023:         	end1000:
+8023: 1100    	 .dw end1001-$
+8025: 3D00    	 .db '=',0
+8027: FF      	 .db $FF
+8028:         	start1001:
+8028: 7C      	 ld   a,h          ; H = H ^ D
+8029: AA      	 xor  d
+802A: 67      	 ld   h,a
+802B: 7D      	 ld   a,l          ; A = (L ^ E) | (H ^ D)
+802C: AB      	 xor  e
+802D: B4      	 or   h           ; if A == 0 they are the same.
+802E: 210000  	 ld   hl,$0000         ; return 0 if different
+8031: C0      	 ret  nz
+8032: 2B      	 dec  hl           ; return -1
+8033: C9      	 ret
+              	
+              	
+              	
+8034:         	end1001:
+8034: 0C00    	 .dw end1002-$
+8036: 2D00    	 .db '-',0
+8038: FF      	 .db $FF
+8039:         	start1002:
+8039: D5      	 push  de           ; save DE
+803A: EB      	 ex   de,hl          ; HL = B, DE = A
+803B: AF      	 xor  a            ; clear carry
+803C: ED52    	 sbc  hl,de          ; calculate B-A
+803E: D1      	 pop  de           ; restore DE
+803F: C9      	 ret
+              	
+              	
+              	
+8040:         	end1002:
+8040: 0600    	 .dw end1003-$
+8042: 2B00    	 .db '+',0
+8044: 02      	 .db end1003-$
+8045:         	start1003:
+8045: 19      	 add  hl,de
+              	
+              	
+              	
+8046:         	end1003:
+8046: 0E00    	 .dw end1004-$
+8048: 616E6400	 .db 'and',0
+804C: FF      	 .db $FF
+804D:         	start1004:
+804D: 7C      	 ld   a,h
+804E: A2      	 and  d
+804F: 67      	 ld   h,a
+8050: 7D      	 ld   a,l
+8051: A3      	 and  e
+8052: 6F      	 ld   l,a
+8053: C9      	 ret
+              	
+              	
+              	
+8054:         	end1004:
+8054: 0D00    	 .dw end1005-$
+8056: 6F7200  	 .db 'or',0
+8059: FF      	 .db $FF
+805A:         	start1005:
+805A: 7C      	 ld   a,h
+805B: B2      	 or   d
+805C: 67      	 ld   h,a
+805D: 7D      	 ld   a,l
+805E: B3      	 or   e
+805F: 6F      	 ld   l,a
+8060: C9      	 ret
+              	
+              	
+              	
+8061:         	end1005:
+8061: 0E00    	 .dw end1006-$
+8063: 786F7200	 .db 'xor',0
+8067: FF      	 .db $FF
+8068:         	start1006:
+8068: 7C      	 ld   a,h
+8069: AA      	 xor  d
+806A: 67      	 ld   h,a
+806B: 7D      	 ld   a,l
+806C: AB      	 xor  e
+806D: 6F      	 ld   l,a
+806E: C9      	 ret
+              	
+              	
+              	
+              	
+              	
+806F:         	end1006:
+806F: 0C00    	 .dw end1007-$
+8071: 2F00    	 .db '/',0
+8073: FF      	 .db $FF
+8074:         	start1007:
+8074: D5      	 push  de
+8075: CD8880  	 call  DIVDivideMod16
+8078: EB      	 ex   de,hl
+8079: D1      	 pop  de
+807A: C9      	 ret
+              	
+              	
+              	
+807B:         	end1007:
+807B: 3800    	 .dw end1008-$
+807D: 6D6F6400	 .db 'mod',0
+8081: FF      	 .db $FF
+8082:         	start1008:
+8082: D5      	 push  de
+8083: CD8880  	 call  DIVDivideMod16
+8086: D1      	 pop  de
+8087: C9      	 ret
+              	
+              	
+              	
+8088:         	DIVDivideMod16:
+8088: C5      	 push  bc
+8089: 42      	 ld   b,d     ; DE
+808A: 4B      	 ld   c,e
+808B: EB      	 ex   de,hl
+808C: 210000  	 ld   hl,0
+808F: 78      	 ld   a,b
+8090: 0608    	 ld   b,8
+8092:         	Div16_Loop1:
+8092: 17      	 rla
+8093: ED6A    	 adc  hl,hl
+8095: ED52    	 sbc  hl,de
+8097: 3001    	 jr   nc,Div16_NoAdd1
+8099: 19      	 add  hl,de
+809A:         	Div16_NoAdd1:
+809A: 10F6    	 djnz  Div16_Loop1
+809C: 17      	 rla
+809D: 2F      	 cpl
+809E: 47      	 ld   b,a
+809F: 79      	 ld   a,c
+80A0: 48      	 ld   c,b
+80A1: 0608    	 ld   b,8
+80A3:         	Div16_Loop2:
+80A3: 17      	 rla
+80A4: ED6A    	 adc  hl,hl
+80A6: ED52    	 sbc  hl,de
+80A8: 3001    	 jr   nc,Div16_NoAdd2
+80AA: 19      	 add  hl,de
+80AB:         	Div16_NoAdd2:
+80AB: 10F6    	 djnz  Div16_Loop2
+80AD: 17      	 rla
+80AE: 2F      	 cpl
+80AF: 51      	 ld   d,c
+80B0: 5F      	 ld   e,a
+80B1: C1      	 pop  bc
+80B2: C9      	 ret
+              	
+              	
+              	
+80B3:         	end1008:
+80B3: 0900    	 .dw end1009-$
+80B5: 2100    	 .db '!',0
+80B7: 05      	 .db end1009-$
+80B8:         	start1009:
+80B8: 73      	  ld   (hl),e
+80B9: 23      	  inc  hl
+80BA: 72      	  ld   (hl),d
+80BB: 2B      	  dec  hl
+              	
+              	
+80BC:         	end1009:
+80BC: 0900    	 .dw end1010-$
+80BE: 4000    	 .db '@',0
+80C0: 05      	 .db end1010-$
+80C1:         	start1010:
+80C1: 7E      	  ld   a,(hl)
+80C2: 23      	  inc  hl
+80C3: 66      	  ld  h,(hl)
+80C4: 6F      	  ld  l,a
+              	
+              	
+              	
+80C5:         	end1010:
+80C5: 0F00    	 .dw end1011-$
+80C7: 2B2100  	 .db '+!',0
+80CA: FF      	 .db $FF
+80CB:         	start1011:
+80CB: 7E      	  ld   a,(hl)
+80CC: 83      	  add  a,e
+80CD: 77      	  ld   (hl),a
+80CE: 23      	  inc  hl
+80CF: 7E      	  ld   a,(hl)
+80D0: 8A      	  adc  a,d
+80D1: 77      	  ld   (hl),a
+80D2: 2B      	  dec  hl
+80D3: C9      	  ret
+              	
+              	
+              	
+80D4:         	end1011:
+80D4: 0700    	 .dw end1012-$
+80D6: 632100  	 .db 'c!',0
+80D9: 02      	 .db end1012-$
+80DA:         	start1012:
+80DA: 73      	  ld   (hl),e
+              	
+              	
+              	
+80DB:         	end1012:
+80DB: 0900    	 .dw end1013-$
+80DD: 634000  	 .db 'c@',0
+80E0: 04      	 .db end1013-$
+80E1:         	start1013:
+80E1: 6E      	  ld   l,(hl)
+80E2: 2600    	  ld   h,0
+              	
+              	
+              	
+80E4:         	end1013:
+80E4: 0F00    	 .dw end1014-$
+80E6: 704000  	 .db 'p@',0
+80E9: FF      	 .db $FF
+80EA:         	start1014:
+80EA: C5      	  push  bc
+80EB: 44      	  ld  b,h
+80EC: 4D      	  ld   c,l
+80ED: ED68    	  in   l,(c)
+80EF: 2600    	  ld   h,0
+80F1: C1      	  pop  bc
+80F2: C9      	  ret
+              	
+              	
+              	
+80F3:         	end1014:
+80F3: 1000    	 .dw end1015-$
+80F5: 702100  	 .db 'p!',0
+80F8: FF      	 .db $FF
+80F9:         	start1015:
+80F9: C5      	  push  bc
+80FA: E5      	  push  hl
+80FB: 7B      	  ld   a,e
+80FC: 44      	  ld  b,h
+80FD: 4D      	  ld   c,l
+80FE: ED79    	  out  (c),a
+8100: E1      	  pop  hl
+8101: C1      	  pop  bc
+8102: C9      	  ret
+              	
+              	
+              	
+              	
+8103:         	end1015:
+8103: 0600    	 .dw end1016-$
+8105: 3B00    	 .db ';',0
+8107: 02      	 .db end1016-$
+8108:         	start1016:
+8108: C9      	  ret
+              	
+              	
+8109:         	end1016:
+8109: 2500    	 .dw end1017-$
+810B: 636F7079	 .db 'copy',0
+810F: 00      	
+8110: FF      	 .db $FF
+8111:         	start1017:
+8111: 78      	  ld   a,b         ; exit if C = 0
+8112: B1      	  or   c
+8113: C8      	  ret  z
+              	
+8114: C5      	  push  bc          ; BC count
+8115: D5      	  push  de          ; DE target
+8116: E5      	  push  hl          ; HL source
+              	
+8117: AF      	  xor  a          ; Clear C
+8118: ED52    	  sbc  hl,de         ; check overlap ?
+811A: 300B    	  jr   nc,__copy_gt_count      ; if source after target
+811C: 19      	  add  hl,de         ; undo subtract
+              	
+811D: 09      	  add  hl,bc         ; add count to HL + DE
+811E: EB      	  ex   de,hl
+811F: 09      	  add  hl,bc
+8120: EB      	  ex   de,hl
+8121: 1B      	  dec  de          ; dec them, so now at the last byte to copy
+8122: 2B      	  dec  hl
+8123: EDB8    	  lddr           ; do it backwards
+8125: 1803    	  jr   __copy_exit
+              	
+8127:         	__copy_gt_count:
+8127: 19      	  add  hl,de         ; undo subtract
+8128: EDB0    	  ldir          ; do the copy
+812A:         	__copy_exit:
+812A: E1      	  pop  hl          ; restore registers
+812B: D1      	  pop  de
+812C: C1      	  pop  bc
+812D: C9      	  ret
+              	
+              	
+              	
+812E:         	end1017:
+812E: 1800    	 .dw end1018-$
+8130: 66696C6C	 .db 'fill',0
+8134: 00      	
+8135: FF      	 .db $FF
+8136:         	start1018:
+8136: 78      	  ld   a,b         ; exit if C = 0
+8137: B1      	  or   c
+8138: C8      	  ret  z
+              	
+8139: C5      	  push  bc          ; BC count
+813A: D5      	  push  de          ; DE target, L byte
+813B:         	__fill_loop:
+813B: 7D      	  ld   a,l         ; copy a byte
+813C: 12      	  ld   (de),a
+813D: 13      	  inc  de          ; bump pointer
+813E: 0B      	  dec  bc          ; dec counter and loop
+813F: 78      	  ld   a,b
+8140: B1      	  or   c
+8141: 20F8    	  jr   nz,__fill_loop
+8143: D1      	  pop  de          ; restore
+8144: C1      	  pop  bc
+8145: C9      	  ret
+              	
+              	
+              	
+8146:         	end1018:
+8146: 0C00    	 .dw end1019-$
+8148: 68616C74	 .db 'halt',0
+814C: 00      	
+814D: FF      	 .db $FF
+814E:         	start1019:
+814E:         	__halt_loop:
+814E: F3      	  di
+814F: 76      	  halt
+8150: 18FC    	  jr   __halt_loop
+              	
+              	
+              	
+8152:         	end1019:
+8152: 0A00    	 .dw end1020-$
+8154: 62726561	 .db 'break',0
+8158: 6B00    	
+815A: 02      	 .db end1020-$
+815B:         	start1020:
+815B: 76      	  db   $76
+              	
+              	
+              	
+              	
+815C:         	end1020:
+815C: 2200    	 .dw end1021-$
+815E: 2A00    	 .db '*',0
+8160: FF      	 .db $FF
+8161:         	start1021:
+8161: C36481  	 jp   MULTMultiply16
+              	
+              	
+8164:         	MULTMultiply16:
+8164: C5      	  push  bc
+8165: D5      	  push  de
+8166: 44      	  ld   b,h        ; get multipliers in DE/BC
+8167: 4D      	  ld   c,l
+8168: 210000  	  ld   hl,0        ; zero total
+816B:         	__Core__Mult_Loop:
+816B: CB41    	  bit  0,c        ; lsb of shifter is non-zero
+816D: 2801    	  jr   z,__Core__Mult_Shift
+816F: 19      	  add  hl,de        ; add adder to total
+8170:         	__Core__Mult_Shift:
+8170: CB38    	  srl  b         ; shift BC right.
+8172: CB19    	  rr   c
+8174: EB      	  ex   de,hl        ; shift DE left
+8175: 29      	  add  hl,hl
+8176: EB      	  ex   de,hl
+8177: 78      	  ld   a,b        ; loop back if BC is nonzero
+8178: B1      	  or   c
+8179: 20F0    	  jr   nz,__Core__Mult_Loop
+817B: D1      	  pop  de
+817C: C1      	  pop  bc
+817D: C9      	  ret
+              	
+              	
+817E:         	end1021:
+817E: 0900    	 .dw end1022-$
+8180: 73776170	 .db 'swap',0
+8184: 00      	
+8185: 02      	 .db end1022-$
+8186:         	start1022:
+8186: EB      	  ex   de,hl
+              	
+8187:         	end1022:
+8187: 0600    	 .dw end1023-$
+8189: 2E00    	 .db '.',0
+818B: 02      	 .db end1023-$
+818C:         	start1023:
+818C: EB      	  ex   de,hl
+              	
+              	
+818D:         	end1023:
+818D: 0900    	 .dw end1024-$
+818F: 613E6200	 .db 'a>b',0
+8193: 03      	 .db end1024-$
+8194:         	start1024:
+8194: 54      	  ld   d,h
+8195: 5D      	  ld   e,l
+              	
+              	
+8196:         	end1024:
+8196: 0900    	 .dw end1025-$
+8198: 613E6300	 .db 'a>c',0
+819C: 03      	 .db end1025-$
+819D:         	start1025:
+819D: 44      	  ld   b,h
+819E: 4D      	  ld   c,l
+              	
+              	
+              	
+819F:         	end1025:
+819F: 0900    	 .dw end1026-$
+81A1: 623E6100	 .db 'b>a',0
+81A5: 03      	 .db end1026-$
+81A6:         	start1026:
+81A6: 62      	  ld   h,d
+81A7: 6B      	  ld   l,e
+              	
+              	
+81A8:         	end1026:
+81A8: 0900    	 .dw end1027-$
+81AA: 623E6300	 .db 'b>c',0
+81AE: 03      	 .db end1027-$
+81AF:         	start1027:
+81AF: 42      	  ld   b,d
+81B0: 4B      	  ld   c,e
+              	
+              	
+              	
+81B1:         	end1027:
+81B1: 0900    	 .dw end1028-$
+81B3: 633E6100	 .db 'c>a',0
+81B7: 03      	 .db end1028-$
+81B8:         	start1028:
+81B8: 60      	  ld   h,b
+81B9: 69      	  ld   l,c
+              	
+              	
+81BA:         	end1028:
+81BA: 0900    	 .dw end1029-$
+81BC: 633E6200	 .db 'c>b',0
+81C0: 03      	 .db end1029-$
+81C1:         	start1029:
+81C1: 50      	  ld   d,b
+81C2: 59      	  ld   e,c
+              	
+              	
+              	
+81C3:         	end1029:
+81C3: 0900    	 .dw end1030-$
+81C5: 70757368	 .db 'push',0
+81C9: 00      	
+81CA: 02      	 .db end1030-$
+81CB:         	start1030:
+81CB: E5      	 push  hl
+              	
+              	
+81CC:         	end1030:
+81CC: 0900    	 .dw end1031-$
+81CE: 706F7000	 .db 'pop',0
+81D2: 03      	 .db end1031-$
+81D3:         	start1031:
+81D3: EB      	 ex   de,hl
+81D4: E1      	 pop  hl
+              	
+              	
+              	
+81D5:         	end1031:
+81D5: 0800    	 .dw end1032-$
+81D7: 613E7200	 .db 'a>r',0
+81DB: 02      	 .db end1032-$
+81DC:         	start1032:
+81DC: E5      	 push  hl
+              	
+              	
+81DD:         	end1032:
+81DD: 0800    	 .dw end1033-$
+81DF: 723E6100	 .db 'r>a',0
+81E3: 02      	 .db end1033-$
+81E4:         	start1033:
+81E4: E1      	 pop  hl
+              	
+              	
+              	
+81E5:         	end1033:
+81E5: 0800    	 .dw end1034-$
+81E7: 623E7200	 .db 'b>r',0
+81EB: 02      	 .db end1034-$
+81EC:         	start1034:
+81EC: D5      	 push  de
+              	
+              	
+81ED:         	end1034:
+81ED: 0800    	 .dw end1035-$
+81EF: 723E6200	 .db 'r>b',0
+81F3: 02      	 .db end1035-$
+81F4:         	start1035:
+81F4: D1      	 pop  de
+              	
+              	
+              	
+81F5:         	end1035:
+81F5: 0800    	 .dw end1036-$
+81F7: 633E7200	 .db 'c>r',0
+81FB: 02      	 .db end1036-$
+81FC:         	start1036:
+81FC: C5      	 push  bc
+              	
+              	
+81FD:         	end1036:
+81FD: 0800    	 .dw end1037-$
+81FF: 723E6300	 .db 'r>c',0
+8203: 02      	 .db end1037-$
+8204:         	start1037:
+8204: C1      	 pop  bc
+              	
+              	
+              	
+              	
+8205:         	end1037:
+8205: 0A00    	 .dw end1038-$
+8207: 61623E72	 .db 'ab>r',0
+820B: 00      	
+820C: 03      	 .db end1038-$
+820D:         	start1038:
+820D: D5      	 push  de
+820E: E5      	 push  hl
+              	
+              	
+820F:         	end1038:
+820F: 0A00    	 .dw end1039-$
+8211: 723E6162	 .db 'r>ab',0
+8215: 00      	
+8216: 03      	 .db end1039-$
+8217:         	start1039:
+8217: E1      	 pop  hl
+8218: D1      	 pop  de
+              	
+              	
+              	
+8219:         	end1039:
+8219: 0A00    	 .dw end1040-$
+821B: 62633E72	 .db 'bc>r',0
+821F: 00      	
+8220: 03      	 .db end1040-$
+8221:         	start1040:
+8221: D5      	 push  de
+8222: C5      	 push  bc
+              	
+              	
+8223:         	end1040:
+8223: 0A00    	 .dw end1041-$
+8225: 723E6263	 .db 'r>bc',0
+8229: 00      	
+822A: 03      	 .db end1041-$
+822B:         	start1041:
+822B: C1      	 pop  bc
+822C: D1      	 pop  de
+              	
+              	
+              	
+822D:         	end1041:
+822D: 0C00    	 .dw end1042-$
+822F: 6162633E	 .db 'abc>r',0
+8233: 7200    	
+8235: 04      	 .db end1042-$
+8236:         	start1042:
+8236: C5      	 push  bc
+8237: D5      	 push  de
+8238: E5      	 push  hl
+              	
+              	
+8239:         	end1042:
+8239: 0C00    	 .dw end1043-$
+823B: 723E6162	 .db 'r>abc',0
+823F: 6300    	
+8241: 04      	 .db end1043-$
+8242:         	start1043:
+8242: E1      	 pop  hl
+8243: D1      	 pop  de
+8244: C1      	 pop  bc
+              	
+              	
+              	
+8245:         	end1043:
+8245: 0900    	 .dw end1044-$
+8247: 2D2D2D00	 .db '---',0
+824B: 03      	 .db end1044-$
+824C:         	start1044:
+824C: 2B      	  dec  hl
+824D: 2B      	  dec  hl
+              	
+              	
+824E:         	end1044:
+824E: 0700    	 .dw end1045-$
+8250: 2D2D00  	 .db '--',0
+8253: 02      	 .db end1045-$
+8254:         	start1045:
+8254: 2B      	  dec  hl
+              	
+              	
+8255:         	end1045:
+8255: 0700    	 .dw end1046-$
+8257: 2B2B00  	 .db '++',0
+825A: 02      	 .db end1046-$
+825B:         	start1046:
+825B: 23      	  inc  hl
+              	
+              	
+825C:         	end1046:
+825C: 0900    	 .dw end1047-$
+825E: 2B2B2B00	 .db '+++',0
+8262: 03      	 .db end1047-$
+8263:         	start1047:
+8263: 23      	  inc  hl
+8264: 23      	  inc  hl
+              	
+              	
+8265:         	end1047:
+8265: 0E00    	 .dw end1048-$
+8267: 303C00  	 .db '0<',0
+826A: FF      	 .db $FF
+826B:         	start1048:
+826B: CB7C    	  bit  7,h
+826D: 210000  	  ld   hl,$0000
+8270: C8      	  ret  z
+8271: 2B      	  dec  hl
+8272: C9      	  ret
+              	
+              	
+8273:         	end1048:
+8273: 0E00    	 .dw end1049-$
+8275: 303D00  	 .db '0=',0
+8278: FF      	 .db $FF
+8279:         	start1049:
+8279: 7C      	  ld   a,h
+827A: B5      	  or   l
+827B: 210000  	  ld   hl,$0000
+827E: C0      	  ret  nz
+827F: 2B      	  dec  hl
+8280: C9      	  ret
+              	
+              	
+8281:         	end1049:
+8281: 0700    	 .dw end1050-$
+8283: 322A00  	 .db '2*',0
+8286: 02      	 .db end1050-$
+8287:         	start1050:
+8287: 29      	  add  hl,hl
+              	
+8288:         	end1050:
+8288: 0800    	 .dw end1051-$
+828A: 342A00  	 .db '4*',0
+828D: 03      	 .db end1051-$
+828E:         	start1051:
+828E: 29      	  add  hl,hl
+828F: 29      	  add  hl,hl
+              	
+8290:         	end1051:
+8290: 0900    	 .dw end1052-$
+8292: 382A00  	 .db '8*',0
+8295: 04      	 .db end1052-$
+8296:         	start1052:
+8296: 29      	  add  hl,hl
+8297: 29      	  add  hl,hl
+8298: 29      	  add  hl,hl
+              	
+8299:         	end1052:
+8299: 0B00    	 .dw end1053-$
+829B: 31362A00	 .db '16*',0
+829F: 05      	 .db end1053-$
+82A0:         	start1053:
+82A0: 29      	  add  hl,hl
+82A1: 29      	  add  hl,hl
+82A2: 29      	  add  hl,hl
+82A3: 29      	  add  hl,hl
+              	
+              	
+82A4:         	end1053:
+82A4: 0A00    	 .dw end1054-$
+82A6: 322F00  	 .db '2/',0
+82A9: 05      	 .db end1054-$
+82AA:         	start1054:
+82AA: CB2C    	  sra  h
+82AC: CB1D    	  rr   l
+              	
+82AE:         	end1054:
+82AE: 0F00    	 .dw end1055-$
+82B0: 342F00  	 .db '4/',0
+82B3: FF      	 .db $FF
+82B4:         	start1055:
+82B4: CB2C    	  sra  h
+82B6: CB1D    	  rr   l
+82B8: CB2C    	  sra  h
+82BA: CB1D    	  rr   l
+82BC: C9      	  ret
+              	
+82BD:         	end1055:
+82BD: 1300    	 .dw end1056-$
+82BF: 382F00  	 .db '8/',0
+82C2: FF      	 .db $FF
+82C3:         	start1056:
+82C3: CB2C    	  sra  h
+82C5: CB1D    	  rr   l
+82C7: CB2C    	  sra  h
+82C9: CB1D    	  rr   l
+82CB: CB2C    	  sra  h
+82CD: CB1D    	  rr   l
+82CF: C9      	  ret
+              	
+82D0:         	end1056:
+82D0: 1800    	 .dw end1057-$
+82D2: 31362F00	 .db '16/',0
+82D6: FF      	 .db $FF
+82D7:         	start1057:
+82D7: CB2C    	  sra  h
+82D9: CB1D    	  rr   l
+82DB: CB2C    	  sra  h
+82DD: CB1D    	  rr   l
+82DF: CB2C    	  sra  h
+82E1: CB1D    	  rr   l
+82E3: CB2C    	  sra  h
+82E5: CB1D    	  rr   l
+82E7: C9      	  ret
+              	
+              	
+82E8:         	end1057:
+82E8: 0C00    	 .dw end1058-$
+82EA: 61627300	 .db 'abs',0
+82EE: FF      	 .db $FF
+82EF:         	start1058:
+82EF: CB7C    	  bit  7,h
+82F1: C8      	  ret  z
+82F2: 1806    	  jr   __negate
+              	
+              	
+82F4:         	end1058:
+82F4: 0E00    	 .dw end1059-$
+82F6: 302D00  	 .db '0-',0
+82F9: FF      	 .db $FF
+82FA:         	start1059:
+82FA:         	__negate:
+82FA: 7C      	  ld   a,h
+82FB: 2F      	  cpl
+82FC: 67      	  ld   h,a
+82FD: 7D      	  ld   a,l
+82FE: 2F      	  cpl
+82FF: 6F      	  ld   l,a
+8300: 23      	  inc  hl
+8301: C9      	  ret
+              	
+              	
+8302:         	end1059:
+8302: 0C00    	 .dw end1060-$
+8304: 62737761	 .db 'bswap',0
+8308: 7000    	
+830A: 04      	 .db end1060-$
+830B:         	start1060:
+830B: 7D      	  ld   a,l
+830C: 6C      	  ld   l,h
+830D: 67      	  ld   h,a
+              	
+              	
+830E:         	end1060:
+830E: 0E00    	 .dw end1061-$
+8310: 6E6F7400	 .db 'not',0
+8314: FF      	 .db $FF
+8315:         	start1061:
+8315: 7C      	  ld   a,h
+8316: 2F      	  cpl
+8317: 67      	  ld   h,a
+8318: 7D      	  ld   a,l
+8319: 2F      	  cpl
+831A: 6F      	  ld   l,a
+831B: C9      	  ret
+              	
+              	
+831C:         	end1061:
+831C: 1900    	 .dw end1062-$
+831E: 7374726C	 .db 'strlen',0
+8322: 656E00  	
+8325: FF      	 .db $FF
+8326:         	start1062:
+8326: D5      	  push  de
+8327: EB      	  ex   de,hl
+8328: 210000  	  ld   hl,0
+832B:         	_SLNLoop:
+832B: 1A      	  ld   a,(de)
+832C: B7      	  or   a
+832D: 2804    	  jr   z,_SLNExit
+832F: 13      	  inc  de
+8330: 23      	  inc  hl
+8331: 18F8    	  jr   _SLNLoop
+8333:         	_SLNExit:
+8333: D1      	  pop  de
+8334: C9      	  ret
+              	
+              	
+8335:         	end1062:
+8335: 2700    	 .dw end1063-$
+8337: 72616E64	 .db 'random',0
+833B: 6F6D00  	
+833E: FF      	 .db $FF
+833F:         	start1063:
+833F: EB      	 ex   de,hl
+8340: C5      	 push  bc
+8341: 2A0580  	    ld   hl,(seed1)
+8344: 44      	    ld   b,h
+8345: 4D      	    ld   c,l
+8346: 29      	    add  hl,hl
+8347: 29      	    add  hl,hl
+8348: 2C      	    inc  l
+8349: 09      	    add  hl,bc
+834A: 220580  	    ld   (seed1),hl
+834D: 2A0780  	    ld   hl,(seed2)
+8350: 29      	    add  hl,hl
+8351: 9F      	    sbc  a,a
+8352: E62D    	    and  %00101101
+8354: AD      	    xor  l
+8355: 6F      	    ld   l,a
+8356: 220780  	    ld   (seed2),hl
+8359: 09      	    add  hl,bc
+835A: C1      	    pop  bc
+835B: C9      	    ret
+              	
+835C:         	end1063:
+835C: 0000    	 .dw 0
+              	
+
+
+total time: 0.0031 sec.
+no errors
