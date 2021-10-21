@@ -22,6 +22,8 @@ BYTE8 *HWGetPalette(BYTE8 colour);
 BYTE8 HWReadKeyboardPort(WORD16 addr);
 void HWLoadProgram(void);
 BYTE8 HWGetBackgroundPalette(void);
+void HWInvalidateScreen(void);
+void HWRepaintScreen(void);
 
 int HWXGetKeyboardRow(int row);
 void HWXSyncImplementation(LONG32 iCount);

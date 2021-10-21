@@ -20,6 +20,7 @@ static int lastControlWrite = 0;
 static int lastToggleCycleTime = 0;
 static int cycleToggleCount = 0;
 static int cycleToggleTotal = 0;
+static int screenInvalid = 0;
 
 static BYTE8 HWForceKey(WORD16 addr,BYTE8 v,int unshifted,int shifted,int controlled);
 static BYTE8 _HWUpdateKey(WORD16 addr,BYTE8 v,int keyInfo);
@@ -42,7 +43,29 @@ void HWReset(void) {
 	lastControlWrite = 0;
 	cycleToggleCount = 0;
 	cycleToggleTotal = 0;
+	screenInvalid = -1;
+}
+
+// *******************************************************************************************************************************
+//											Force Repaint next sync
+// *******************************************************************************************************************************
+
+void HWInvalidateScreen(void) {
+	screenInvalid = -1;
+}
+
+// *******************************************************************************************************************************
+//								   Screen Repaint on Mode/Palette change
+// *******************************************************************************************************************************
+
+void HWRepaintScreen(void) {
 	HWXClearScreen(HWGetBackgroundPalette());
+	int s = HWISTEXTMODE() ? 512 : 2048;
+	for (int a = 0x7000;a < 0x7000+s;a++) {
+		BYTE8 b = CPUReadMemory(a);
+		CPUWriteMemory(a,b ^ 0xFF);
+		CPUWriteMemory(a,b);
+	}
 }
 
 // *******************************************************************************************************************************
@@ -58,6 +81,10 @@ void HWSync(void) {
 		HWXSetFrequency(0);
 	}
 	lastToggleCycleTime = 0;
+	if (screenInvalid != 0) {
+		HWRepaintScreen();
+		screenInvalid = 0;
+	}
 }
 
 // *******************************************************************************************************************************
@@ -66,6 +93,9 @@ void HWSync(void) {
 
 void HWLoadProgram(void) {
 	char fileName[32];
+	//
+	// 		$7A9D is the location where the cloaded filename is stored in memory as an ASCIIZ string
+	//
 	int ptr = 0x7A9D;
 	int offset = 0;
 	WORD16 startAddress,endAddress;
@@ -75,15 +105,29 @@ void HWLoadProgram(void) {
 		fileName[offset] = tolower(CPUReadMemory(ptr+offset));
 		offset++;
 	}
+	//
+	// 		Empty string if just "CLOAD"
+	//
 	if (offset == 0) {
 		// Load directory into BASIC
 		fileName[offset++] = 'a';
 	}
+	//
+	// 		Make it a VA File and Load it
+	//
 	strcpy(fileName+offset,".vz");
 	int err = HWXLoadFile(fileName,&startAddress,&endAddress,&fileType);
+	//
+	// 		File type $F1 autoruns machine code.
+	//
 	if (fileType == 0xF1) CPUSetPC(startAddress);
+	//
+	// 		$1E4A Generates an FC error when it can't be loaded/
+	//
 	if (err) CPUSetPC(0x1E4A);
-
+	//
+	// 		$78F9 Update the BASIC END pointer to fix up.
+	//
 	CPUWriteMemory(0x78F9,endAddress & 0xFF);
 	CPUWriteMemory(0x78FA,endAddress >> 8);
 }
@@ -97,13 +141,7 @@ void HWWriteControlLatch(BYTE8 data) {
 	// 		Check mode change or background change.
 	//
 	if ((data & 0x18) != (lastControlWrite & 0x18)) {
-		HWXClearScreen(HWGetBackgroundPalette());
-		int s = HWISTEXTMODE() ? 512 : 2048;
-		for (int a = 0x7000;a < 0x7000+s;a++) {
-			BYTE8 b = CPUReadMemory(a);
-			CPUWriteMemory(a,b ^ 0xFF);
-			CPUWriteMemory(a,b);
-		}
+		HWInvalidateScreen();
 	}
 	//
 	// 		Assume pushing and pulling :)

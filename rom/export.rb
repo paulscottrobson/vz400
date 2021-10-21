@@ -187,6 +187,12 @@ class MonitorROM < StandardROM
 		patch 0x3666,0xC3 
 		patch 0x3667,0xCF 
 		patch 0x3668,0x36 
+		#
+		#  		New prompt
+		#
+		patch 0x00FF,0xED
+		patch 0x0100,0xFE
+		patch 0x0101,0x00
 	end
 
 	def patch(addr,byte)

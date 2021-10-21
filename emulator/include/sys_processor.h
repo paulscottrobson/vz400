@@ -14,7 +14,7 @@
 
 #define CYCLE_RATE 		(3580*1000)													// Cycles per second (3.58Mhz)
 
-#define RAMSIZE 		(0xFF00)													// Max memory in PC version (including ROM space)
+#define RAMSIZE 		(0xF800)													// Max memory in PC version (including ROM space)
 
 typedef unsigned short WORD16;														// 8 and 16 bit types.
 typedef unsigned char  BYTE8;

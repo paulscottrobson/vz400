@@ -35,7 +35,7 @@ static char logBuffer[64];
 static BYTE8 s_Flag,z_Flag,c_Flag,h_Flag,n_Flag,p_Flag; 							// Flag Registers
 static BYTE8 I,R,intEnabled; 														// We don't really bother with these much.
 
-static BYTE8 ramMemory[RAMSIZE];													// Memory at $0000 upwards
+static BYTE8 ramMemory[0x10000];													// Memory at $0000 upwards
 
 static LONG32 temp32;
 static WORD16 temp16,temp16a,*pIXY;
@@ -43,6 +43,7 @@ static BYTE8 temp8,oldCarry;
 
 static int cycles = 512;															// Cycle Count.
 static int cyclesPerFrame = CYCLES_PER_FRAME;										// Cycles per frame
+static int highSpeed = 0; 															// Force to 33Mhz
 
 #define CYCLES(n) cycles -= (n)
 
@@ -119,6 +120,15 @@ static void _Write(WORD16 address,BYTE8 data) {
 				data = data << 2;
 			}
 		}
+	}
+	//
+	// 		Extensions
+	//
+	if (address < 0x2000) {
+		//
+		//	 	POKE 4096,1 turns on 33Mhz mode.
+		//
+		if (address == 0x1000) highSpeed = (data != 0); 		
 	}
 }
 
@@ -205,7 +215,7 @@ int CPUExecuteInstruction(void) {
 			FAILOPCODE("-",opcode);
 	}
 	if (cycles >= 0 ) return 0;														// Not completed a frame.
-	cycles = cycles + cyclesPerFrame;												// Adjust this frame rate, up to x16 on HS
+	cycles = cycles + (highSpeed ? 33*1000*1000 : cyclesPerFrame);					// Adjust this frame rate, up to x16 on HS
 	HWSync();																		// Update any hardware
 	 if (intEnabled) { 																// Interrupt enabled.
 	  	PUSH(PC);																	// Do RST 38h

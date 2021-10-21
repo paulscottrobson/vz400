@@ -4,7 +4,7 @@
 //		Name:		cpu_support.h
 //		Purpose:	CPU Support file , functions and macros included.
 //		Created:	21st October 2021
-//		Author:	Paul Robson (paul@robsons.org.uk)
+//		Author:		Paul Robson (paul@robsons.org.uk)
 //
 // *******************************************************************************************************************************
 // *******************************************************************************************************************************
