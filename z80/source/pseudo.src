@@ -1,0 +1,17 @@
+# *****************************************************************************
+# *****************************************************************************
+#
+#		Name:		pseudo.src
+#		Author:		Paul Robson (paul@robsons.org.uk)
+#		Date:		21st October 2021
+#		Reviewed: 	No
+#		Purpose:	Pseudo operations that speed up or provide support.
+#
+# *****************************************************************************
+# *****************************************************************************
+
+#
+# 		These are specific internal ones for the tape interface
+#
+EDFF "LOAD" 1
+		HWLoadProgram()		

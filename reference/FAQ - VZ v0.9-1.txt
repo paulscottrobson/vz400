@@ -1,0 +1,1060 @@
+
+VZ200 / VZ300 FAQ v0.9		as at: 07/jun/2021.
+======================
+
+www.vz200.org
+www.wikipedia.com/vz200
+
+The VZ200 was release to the world in 1983 by Video Technology in Hong Kong.
+it took the world by storm selling over 4 million units within the first 48 hours. (Not true one bit)
+But the 1985/6 Dick Smith Electronics catalogue did make mention that "over 300,000 sold". (Close enough)
+The unit was sold with a Z80 for its V8-like performance, a Motorola 6847 video chip for the high 
+definition resolution with 2 kilobytes of video storage RAM, and, depending on which part of the world 
+you live in, either 2, 4, or 6k of normal user RAM. They couldn't make up their minds.
+ 
+
+The VZ300 was released in 1985 (in Australia at least), and perhaps in 1984 in other parts of the world 
+as the Laser 310, such as China, Italy, Euroasia, Germany.
+
+
+
+INDEX
+=====
+(0) VZ Format
+
+(A) BASIC Programs
+    - no listing
+    - automatic line numbering
+
+(B) Binary programs 
+
+(C) Graphics
+
+(D) Recording
+
+(E) PORT utilisation.
+
+(F) Game Cheats
+
+(G) Other stuff
+    - Emulators
+	(1) VZEM
+	(2) JamesVZ200.
+	(3) MAME.
+	(4) JEMU
+	(5) WinVZ300 / DSEVZ200 / Emulator 2001
+	(6) SoundPaint - Jürgen Reuter
+	(7) VZ200 Remake
+	(8) ZZEMU Laser 310 Emu
+	(9) ZZEMU's FPGA
+	(10) VZ Emulator
+	(11) VZ-Next
+	(12) MISTer - Alan.
+	(13) JSMESS - Jason Scott
+	(14) Laser 310 Emu by Antonino Porcino.
+	(15) emaultor - Richard Chandler
+     
+(H) VIDEO & 6847
+    - Video timings
+
+(I) POKES !!!
+
+(J) Current contact info
+ 
+(K) List of Extended DOS and EXtended BASIC's
+   a. Extended DOS - Dave Mitchell
+   b. XB1 - Russell Harrison.
+   c. XB2 - Russell Harrison
+   d. EXBv2.5 - Steve Olney
+   e. Extended BASIC by W. Obrist.
+   f. Extended BASIC by Gerhard Wolfe (Sanyo in Germany)
+   g. Extended BASIC v1.5c (China)
+
+(L) Obscure code
+
+
+--------------------------------------------------
+
+(0) VZ Format
+=============
+
+.VZ File format (24 byte header). Created by Brian Murray in 1999.
+The .VZ format was put together very quickly one night by Brian to get "something / anything" to work, for the first 
+emulator to load and save files. The format is a "snapshot" and not necessarily technically correct by any means.
+It was a legitimate hack together format, that, became standard. Those that are VZ purists do not accept this format.
+It is not a tape cassette image, and, as is, the VZ snapshot format is not compatible with in any way with what comes 
+out of a VZ cassette when played. This format is of the .CVZ format. However, converters are available.
+The snapshot format is a very quick, nice, and efficient method to load and save files; as well as they can be easily 
+converted into Windows PCM .WAV files that can easily be loaded into real hardware.  22000 hz, 8 bit, mono.
+
+typedef struct vzFile
+{
+	byte vzmagic[4];
+	byte filename[17];
+	byte ftype;
+	byte start_addrl;
+	byte start_addrh;
+} VZFILE;
+
+
+
+
+
+This Issues Feature - The VZ Tape Format
+Prior to 1985 the VZ floppy drive was not available in Australia and all File I/O was via the cassette 
+tape interface. This article will discuss how the VZ saves data to tape.
+
+VZ Rom routines
+The VZ Rom has a tape save routine located at address 34A9h. The routine is coded to save Basic programs, 
+however with a small change to the way the routine is called it is easy to save machine code programs or 
+custom data files. (See note 1)
+
+Data written to tape is saved in the following order:
+    Synch bytes
+    Preamble
+    Filetype
+    Filename
+    Start Address
+    End Address
+    Program bytes
+    Checksum
+    Trailer
+
+Synch bytes
+The synch bytes are written as 255 bytes of 80h. (10000000b) The synch bytes signal the start bit of 
+the tape data stream, and help to buffer the signal noise which occurs at the start of each recording.
+
+Preamble
+5 bytes of FEh are written to tape following the synch bytes. During loading, The preamble bytes 
+confirm the tape is synched correctly, and the tape being read is VZ format.
+
+Filetype
+Programs are saved with a default filetype of F0h. The VZ rom uses F0h to identify Basic programs. 
+The filetype also tells the interpreter what to do on completion of loading - return control to the 
+user for basic programs, or auto execute for m/c programs (F1h)
+
+Filename
+The filename is written next - up to 17 bytes, terminated by 00h. The filename is taken from a buffer 
+at address 7A9Dh
+
+Start Address
+The start address is read from the values at address 78A4/5. For basic programs the start address is 
+normally 7AE9h
+
+End address
+The end address is read from the values at address 78F9/A.
+
+Program bytes
+all bytes between the start and end address inclusive are written as the main data block.
+
+Checksum
+During the save operation each program byte is added to a 16 bit checksum at address 7823/4h. This is 
+compared with the checksum generated in verify & load operations to check the program was reloaded correctly.
+
+Trailer
+A final 20 bytes of 00h is written after the checksum. This is again used to buffer the sharp noise 
+caused by the loss of signal, which could potentially corrupt the checksum.
+
+Note 1: saving other program types
+
+The start of the save listing is shown below.
+
+34A9: DI
+34AA: LD C,F0h
+34AC: CALL 3558h
+
+The first 3 instructions disable interrupts to allow for perfect timing, load the C register with the 
+filetype (F0h for basic program), and call the routine at address 3558h which writes the synch bytes, 
+preamble, filetype, and filename. To save a machine code program, or any custom data file:
+
+1. Load the start and end address into 78A4/5 & 78F9/A
+2. Move the filename (null terminated) into the buffer at 7A9D
+3. Disable interrupts
+4. Load the C register with your filetype
+5. Call 34AC
+
+
+Loading Programs
+
+To load a program, the VZ does the following:
+
+1. Scans the tape stream for the first synch byte of 80h
+2. Waits for first preamble byte
+3. Reads 4 more preamble bytes, (if these aren't found a loading error is generated)
+4. Reads filetype
+5. Reads filename
+6. Reads Start Address
+7. Reads End Address
+8. Reads Each program byte into memory, and adds byte to checksum
+9. Reads Checksum
+10. Compares tape checksum to generated checksum, generates a loading error if not equal
+11. Checks filetype, if F1 jumps to m/c start address 
+
+
+.CVZ  - cassette image.                         JVZ200 and WinVZ200 emulator. 
+.DSK  - Floppy disc image                       VZEM and MAME/MESS.
+.DVZ  - Floppy disc image                       WinVZ300 and DSEVZ200 emulators.
+.TXT  - printer output / listings               VZEM emulator.
+.BAS  - a utility written by Barry Hubble.	Ascii Text listing. 
+
+
+
+
+VZ/Laser Common File Types for media recording
+----------------------------------------------
+ T	Basic File.
+ B	Binary File. (Machine language assembled "Binary")
+ D	Sequential access program data fle.
+ F	Quickwrite Document.
+ A	Russell Harrisons Editor Assembler file.
+ S	Dave Mitchell Editor Assembler file.			Start: 	$A280
+ S	Mark Harwood Editor Assembler file.			Start: 	$A280
+ S	Quickwrite / Diskops System File/Label.
+ W	Editor Assembler with Diskops File.			Start: 	$A813
+ W	Epps and Fackerell Word Pro with Patch 3.3 File		End:	$D000
+ W 	Russell Harrison Word Pro File.	
+ .P	Bruce's Art Gallery/Poster Shop.
+
+############################################################################################
+
+
+(A) BASIC Programs
+------------------
+For BASIC programs to be transferred, it is a simple matter of loading them up into the VZ's memory, 
+and typing CSAVE"FILENAME", once the recording program is underway.
+
+
+
+
+NO LISTING :
+----------
+With this you can protect your programs. List command won't work anymore and run will work only
+one time after you load program. Be careful as with this it's not possible to break programs running. 
+
+1) load the program you have to protect.
+2) insert this line as it is (be sure you haven't line 1 in your program or renum it):
+1 poke30884,17:poke30885,123:poke31154,205:run:rem
+3) enter this (after each line press -return-):
+poke 31467,255 
+poke 31468,255
+poke 31502,0
+poke 31503,0
+4) save your program
+
+This was used within the likes of Formula One, and Maze of Argon.
+
+
+AUTOMATIC LINE NUMBERING
+------------------------
+This insert the line number in automatic every time return key is pressed. It's useful when 
+you write long basic programs as it speeds up your work and prevent errors. What to do:
+1) Enter this: (after each line press -return-... 
+poke 30946,x 
+poke 30947,y (This 2 pokes define from what line number it will start.) 
+(For example to start from line 10 digit x=10, y=0) 
+(To start from line 1000 digit x=232, y=3) 
+(To start from line 256 digit x=256, y=0) 
+(To start from line 257 digit x=1, y=1)
+2) And this: poke 30948,z (z stands for the incremental number. Next line = previous line + z.) 
+poke 30945,255 (Starts automatic line numbering.)
+
+
+############################################################################################
+
+
+
+(B) Binary programs 
+-------------------
+
+Binary or 'machine language' programs will need to be loaded into memory and csaved out to tape. 
+How do we do this you ask? There are three methods that I know of:
+(1) CLOAD the program from tape, or BLOAD the program from disk.
+
+	poke 30884,start address (lo byte):poke 30885,start address (hi byte)
+	poke 30969,end address (lo byte):poke 30970,end address (hi byte)
+	CSAVE"FILENAME"
+
+Whats that? You don't know the start and end address of your program? Well, Im guessing that if you do a:
+PRINT PEEK(30862);PEEK(30863)
+This may give the correct lo/hi result. At the time of writing, I havent got the foggiest!. 
+Disk drive users may be lucky enough to have a utility or seven floating around such as Extended DOS, 
+Extended Basic 2, filesearch, EXT 16, VZ Monitor, VZ Disk Doctor and others that can show you the start 
+and end addresses. For cassette users, Im sorry - you may have to ask on the list for help.
+
+(2) Use Binary Copier ("BC"). This will allow you to load in a binary program from cassette, 
+then be able to CSAVE it out to tape.
+
+(3) Use VZ Copy Pro v4 ("COPYPRO4"). This utility will load in from either cassette or disk, 
+and will allow one to CSAVE the program back out. If you happen to have this program, then use it.
+It is possible to grab this file from VZ-Alive web site, convert it to real-VZ format with the use 
+of the utility VZ2WAV.EXE (obtained also from either VZ-Alive or Interteks web site), then play it 
+out from a PC, into the real-vz. Once it is running, play the file again from the PC, but this time 
+the running copy of COPYPRO4 will be reading COPYPRO4 and once in memory, can then be csaved out to 
+real cassette or to VZ disk for future use.
+VZ Copy Pro v5 ("COPYPRO5") only does disk-to-disk.
+
+
+
+
+Or, in the wise words of Guy Thomason:
+
+poke 30884,sl:poke 30885,sh
+poke 30969,el:poke 30970,eh
+csave "yamama"
+This will dump any memory location to tape. Pretty useful when you want to dump rom images etc.
+
+
+############################################################################################
+
+
+
+(C) Graphics.
+-------------
+
+With MODE(0) and MODE(1) graphics, it is possible to CSAVE this memory segment out to tape thru the use of:
+
+MODE(1):
+poke 30884,00:poke 30885,112		:rem lo-byte/hi-byte
+poke 30969,255:poke 30970,119		
+CSAVE"FILENAME"
+
+MODE(0)
+poke 30884,00:poke 30885,112		:rem lo-byte/hi-byte
+poke 30969,255:poke 30970,113		
+CSAVE"FILENAME"
+
+
+Saving video RAM to Disk:
+BSAVE"FILENAME",7000,77FF
+
+
+############################################################################################
+
+
+
+(D) Recording.
+--------------
+
+When recording on the PC, select a sample rate of 22050 bits per second, mono channel, 
+8 bit resolution. The utility WAV2VZ will only read these "Windows PCM  .WAV" files. 
+You should achieve a recording level of around -6 to 0 db. Any lower and errors can and 
+will occur, and the utility WAV2VZ will then in turn transfer these into errors in the 
+resulting .VZ file. (On my microphone settings under NT, there is a further option to 
+enhance the input by 20db. I need this on.)
+
+Once the file has started recording, you then hit enter after the CSAVE"FILENAME" 
+command on the VZ. Be patient, and when VZ has finished CSAVEing, stop the recording 
+on CoolEdit / Audio Edit / Etc. Save it. Run the utility:
+
+ WAV2VZ FILENAME.WAV FILENAME.VZ
+
+Details of the filename will be shown - start/end/length/file type.  
+You should then be able to run an emulator, and load the resulting .VZ file in.
+
+
+
+############################################################################################
+
+
+(E) PORT utilisation.
+---------------------
+
+ 0 		printer interface 			
+ 7		Compumuse Music Synthesiser kit on real VZ hardware.
+ 14		Printer interface D0-D8 lines. 		
+ 14 d0-d8	Robot control & real-world interface 		
+ 32		Aust Super VZ Graphics
+ 32 		Joystcik - Test overall status.
+ 39		Joystick - left fire
+ 43		Joystick - left arm, direction
+ 45		Joystick - right fire
+ 46		Joystick - right arm, direction
+ 55		SD CARD		- RAMmap. Set this to 0 for VZ200 compatibility (RAM mapped from $9000-$FFFF 
+					    or set to 1 for VZ300 compatibility (RAM mapped from $B800-$FFFF
+ 56		SD CARD		- SPI port CFG for SD interface.	
+ 57		SD CARD		- SPI port Data for SD interface.
+ 58		
+		Bit0 = EPROM(0) or SRAM(1) mapped to DOS ROM AREA (Note, SRAM write is enabled even when 
+			EPROM is selected.  This means you can code a loop to read and write from the DOS ROM area 
+			to copy itself into ram before switching to SRAM)
+		Bit1 = SRAM BankLow - DOS ROM SRAM bank 0 or 1 ($4000-$67FF)
+		Bit2 = SRAM BankHiigh - SRAM Bank 0 or 1 (Expanded RAM up to $FFFF)
+		Bit3 = on board LED if fitted. (If you mod your VZ's ROM /CS line, you can use this signal to 
+			disable the original ROM and map in SRAM allowing you to load BASIC rom's from SD card. 
+		   	This hasn't been implemented yet.
+ 128		Compumuse music synthesister (SN76489 chip). Electronics Australia Z80 electronic kit project, in VZEM emulator.
+ 128		AY8910 soundchip - data register.
+ 129		AY8910 soundchip - Channel select register
+ 222 		Bank memory		
+ 222		German graphics mod
+ 250		Network-info			ie: OUT250,0:FORI=1to4:PRINTINP(250);:NEXT (192.168.1.100)
+ 251		Expansion Volume-Control / Audio Device
+ 251 			R/W 			reads / sets the volume (0-255)
+			OUT 251,0 		: REM SOUND OFF
+			OUT 251,INP(251)+50 	: REM DO IT LOUDER
+ 252,253,254,255	Extension of load / save .vz	TAPE CONTROL
+ 252 	OUT 		VZEM - LOAD .vz program no. [n]
+ 253 	OUT 		VZEM - SAVE .vz program no. [n]
+ 254	IN 		VZEM - get the LSB / MSB of tape position
+ 254 	OUT 		VZEM - 0:  STOP
+			VZEM - 1:  PLAY
+			VZEM - 16: RECORD
+ 255	OUT		VZEM - : REWIND to position [n]
+ 255	IN		VZEM - : GET LSB/MSB of tape position
+
+
+
+
+
+
+(F) Games Cheats
+----------------
+
+
+Ghost Hunter:
+POKE -30899,60    	- When you die, number of men left goes UP!
+POKE -32525,255         - Start with 255 men.
+POKE -30901,202      	- Infinite lives.
+
+VZ Invaders:
+POKE -31382,163      	- Infinite Lives
+
+Galaxon:
+POKE 32749,0            - Infinite Lives
+
+Dawn Patrol:
+POKE 32556,183          - Infinite Lives
+POKE -26654,0           - Unlimited Fuel
+POKE -26721,0           - Unlimited Time
+
+Ladder Challenge:
+POKE -30873,183      	- Infinite Lives
+POKE -29371,201      	- Infinite Time
+
+VZ Panik:
+POKE -29591,0          	- Infinite Time
+POKE -30524,183      	- Infinite Lives
+
+Kamikaze Invaders:
+POKE -32465,183      	- Infinite Lives
+
+Hamburger Sam:
+POKE -32568,183      	- Infinite Lives
+POKE -32265,0           - Infinite Pepper
+
+
+############################################################################################
+
+
+(G) Other Stuff
+---------------
+
+(a) EMULATORS
+
+
+VZ / Laser EMULATORS v1.3						as at 26/May/2021.
+=========================
+
+
+(1) VZEM			- Guy Thomason
+    a) DOS								16bit DOS / Command line.
+    b) Windows GUI							Windows 32-bit
+    c) SDL release
+    c) Android
+    d) Pocket PC
+    e) Raspberry PI
+(2) JamesVZ200.			- James 'EmuCompBoy' Tamer. 		Windows.
+(3) MAME.			- Juergen Buchmueller and Dirk Best	Windows. Linux
+(4) JEMU (java)			- Richard Wilson	    		Windows. Linux
+(5) WinVZ300 and DSEVZ200 	- Gavin Turner				Windows
+(6) Emulator 2001 		- Gavin Turner				Windows
+(7) VZ SoundPaint java emu	- Jürgen Reuter				Windows. Linux
+(8) VZ200 Remake (java)		- Jürgen Wahlmann & Christian Wahlmann	Windows. Linux
+(9) Laser 310 Emu 		- ZZEMU    (SDL2, DD20) 		Windows
+(10) FPGA Laser310 emu		- ZZEMU.   				FPGA : Altera Cyclone based FPGA DE0, DE1, DE2 boards.
+(11) VZ Emulator		- Paul Anderson				Windows.
+(12) VZ-Next			- Paul Robson				Windows. Linux. ESP32. Raspi 
+(13) MISTer 			- Alan.					MiSTer port of the core from PGA Laser310 emu
+(14) JSMESS 			- Jason Scott				Windows. Linux.
+(15) Laser 310 Emu 		- Antonino Porcino.			Windows. Linux.
+(16) Emulator 			- Richard Chandler			Windows. ?
+
+
+
+
+
+(1) VZEM
+========
+Guy's Main site			Guy Thomason	http://intertek00.customer.netspace.net.au/vz200/
+VZEM v2.2 (DOS)			Guy Thomason	https://vzalive.bluebilby.com/emulators/vzem_22.zip
+VZEM (aka WinVZ)		Guy Thomason	https://vzalive.bluebilby.com/emulators/winvz4.zip
+VZEM SDL			Guy Thomason	http://intertek00.customer.netspace.net.au/vz4sdl/
+VZEM Android			Guy Thomason	http://intertek00.customer.netspace.net.au/vz4droid/
+VZEM Pocket PC			Guy Thomason	http://intertek00.customer.netspace.net.au/pocketvz/
+VZEM Raspberry PI		Guy Thomason	http://intertek00.customer.netspace.net.au/pi2vz/
+
+
+VZEM
+====
+Guy Thomason hit the world with his first release of a small green screen executable in 
+around July 1999. This was the first working VZ emulator. Development through his enthusiasm was quick 
+and only within a few months Guy released a full working version of his emulator that would interpret 
+the BASIC of a real VZ, and shortly after, VZ DOS. In September 2001 his emulator supported cassette, 
+floppy disk and 4 meg of paged memory.
+
+The formatting format of the original DOS/Command-line version of VZEM emulator 
+(versions 1 and 2.0), dated 1999, has a slight bug within. The format of the original came out 
+as a 98k image, whilst version 2.2 and all subsequent releases of VZEM in all flavours all had 
+99k images.  This small fix will change the original release to fix the 98 to 99k problem. 
+However, please note, that all of those original 98k images can not be read correctly.
+
+From Guy:
+"Disk formatting:
+Yeah it seems to work OK now. If you can't wait for the upgraded 
+version, change the byte at 1BE73H in VZEM.EXE from A0H to B0H."
+
+
+The latest release of his emulator (dated around Feb 2021) fixes a few common annoyances that 
+have lurked within for a few years. After hundreds of hours of personally testing the product 
+alongside real hardware, it is as close as you will ever get. Super High Res Graphics and 1-bit 
+audio are absolutely spot on. And in some rare circumstances (1-bit audio), the emulator actually
+works better, whereas there is hardware limitations (think 1-bit audio and the VZ's own internal 
+piezo speaker) for instance, where the internal speaker refuses to play. Plugging in an external 
+amplified speaker to the piezo speaker plays the music perfectly as does the emulator.
+
+During the years, Guy has released a number of flavours of his emulator, on to Raspberry, 
+Android, and even a Pocket Pc. Guy will become your best friend should you mention the words 
+'beer' and/or 'bacon'. Please do not ever mention the word 'iPhone' to him. 
+
+
+a) See the VZEM README.TXT file to find all about memory banks, extended audio and extended graphics.
+
+
+b) Importing 256x192 screens into memory into VZEM.
+There’s probably better ways, but this is the developers methods:
+I bumbled my way through it by:
+- Use irfanview to advance each frame of juggler.avi (24 frames)
+- Press Ctrl + F11 to capture each frame to a directory
+- Use the irfanview batch convert feature to convert each frame from 320x200 color to 256x192 mono
+
+Once all the frames were converted I used the “Import BMP” feature in vzem to load each bitmap to address 8000h
+I did a BSAVE of each bitmap 8000h – 9800h  (6k) spanning two disks
+			     c000  - d800  49152 to 55296
+FOR I=49152-32767 TO 55296-32767:poke i-16384,peek(i):next
+The basic loader program BLOADs each frame from disk, saving each frame to bank memory
+To get the animation the program loops through each frame, activates that bank and blits it to the screen
+Once I started on it properly the whole thing only took about 3 or 4 hours, was very gratifying to actually see it work!
+
+
+
+
+
+
+(2) JamesVZ200.
+===============
+By: James Tamer
+JVZ was written very early in the peace, having been the second VZ emulator released sometime in the 2000-2001 era, 
+and unfortunately the initial released copy of it was not ever kept, and has been lost to the ether. 
+Version 0.2.0 was released in 2002 with version 0.2.1 being the final release.
+geocities died years ago, ocities is the archive of geocities.
+Original link was : http://www.geocities.com/emucompboy
+
+JVZ200 (bv0.21b)			http://www.oocities.com/emucompboy
+
+
+
+
+(3) MAME (mess).
+================
+VZ by: Juergen Buchmueller and Dirk Best
+MAME is the biggest and largest combination of emulators on this planet. All rolled up into one heck of a single platform.
+Juergen Buchmueller and Dirk Best were both members of the VZ Yahoogroups list in the early years, and wrote the VZ emulator 
+within MESS/MAME. This emulator is perhaps second in line to being the most 'compatiblest' with a real VZ. 
+Disk drive and serial terminal emulation works. 1-bit music emulation is somewhat "ummm"
+
+MAME					http://www.mamedev.org
+MESS v0.49b and 0.56 			See VZ_ALL_Software_JAN2021 at www.github.com/bushy555
+
+
+
+
+
+MESS can be confusing to use, it's the price we have to pay to support a few thousand 
+systems and run on many different operating systems.
+
+Some tips:
+
+First time you run MESS, start it with "mess.exe -cc", this creates the mess.ini main 
+config file. I like to edit it and disable fullscreen for example.
+
+Some keys:
+
+- ScrLock: Disables or enables full keyboard mode. In full keyboard mode, all
+   keys are grabbed and sent to the emulated system (so you can't even exit the
+   emulator with ESC). In partial keyboard mode, the UI keys respond as normal.
+- F12: Screenshot
+- F11: Display current emulation speed and framerate
+- F10: Toggle throttle, if you don't want to wait for something to load (great for tapes)
+- Tab: Open builtin menu, to load files or configure the emulator
+
+Starting a system from the command line with the -listmedia switch will
+display the files it accepts. For vz300:
+
+d:\workspace\mame>mess64.exe vz300 -listmedia
+ SYSTEM      MEDIA NAME (brief)   IMAGE FILE EXTENSIONS SUPPORTED
+----------  --------------------  ------------------------------------
+vz300        printer     (prin)     .prn
+             snapshot    (dump)     .vz
+             cassette    (cass)     .wav  .cas
+             cartridge   (cart)     .rom
+             floppydisk1 (flop1)    .dsk
+             floppydisk2 (flop2)    .dsk
+
+So you can use "-dump file.vz" to load it.
+
+
+-ramsize ram_value'', where //ram_value// can assume one of the following values 
+  2k - standard model
+  18k - with 16K memory expansion
+  66k (default) - with 64K memory expansion
+  4098k - with 4MB memory expansion
+
+
+
+MESS Debuger 				
+	mess.exe vz300 -debug			(type help)
+
+Loading a file from command line	
+	mess.exe vz300 -dump FX.VZ
+
+Using the builtin file manager		
+	mess.exe vz300
+	Press <ScrLock> to disable full keyboard emulation.
+	Press <TAB>
+	Select the File Manager and then load FX.VZ into the Snapshot slot.
+
+Dumping to AVI video file		
+	mess.exe vz300 -dump FX.VZ -aviwrite fx.avi
+
+						
+fx.vz running on MESS in Youtube: http://www.youtube.com/watch?v=0kIcY2f7f_A
+
+
+MAME on Linux - Command line example
+=====================================
+mame laser210 -mem laser_64k -video soft -ui_active -bp ~/.mame/roms -resolution0 1280x720 -aspect
+1000:750 -skip_gameinfo -nowindow -dump thejungle.vz 
+
+
+
+
+
+(4) JEMU
+========
+Richard Wilson's name is big within the Amstrad CPC community. He wrote WinApe. Never heard of WinApe? Do a google.
+Richard was also a member of the VZ community in the early years whilst he wrote his java emulator. 
+Its all there within his site. Load it up, get Java working, and play a game as if you were on a real VZ. Richard lives in Tasmania.
+
+Java VZ					https://jemu.winape.net
+
+
+
+(5) WinVZ300 / DSEVZ200 
+=======================
+Gavin Turner is a highly active fellow in Christchurch in New Zealand. Loves his emulators. Has written a number of them for differing flavours of hardware over he years.
+Originally writing Emulator 2001 with a bunch of things rolled into one, he turned to the humble VZ and decided to write a full blown emulator fully, 100%, in assembler. A tough gig, but managed to do it with his first release (I believ) in 2010.
+After many many releases, some of which were not ever saved, his final release came in about 2013 which had its own 1 meg download installer --- which unfortunately to most of us we didnt like, and could not get through to Gavin that this was not a good outcome. Gavin unfortunately arguued the point.   He left our community under bad terms and I though that he had totally disappeared off the planent. Fast forward to 2019 era, and he was a new man. Putting out three more releases that fixed issues and getting rid of the installer. However, there was still some continuuing concerns within the community that a lot of anti-virus software picks up his emulator as being a virus, as had also been done in the earlier years.
+Gavin can be found on his 'VZ demo' Facebook page; and unfortunately performing a google search on his emaultor will find many many pages acknowledging his emulator, but most, if not all, go to dead download links. 
+Original website (long been dead): http://gstsoftware.co.nz/
+
+WinVZ300 / DSEVZ200 / Emulator 2001	https://web.archive.org/web/20160303181605/http://gstsoftware.co.nz/
+Latest version on Facebook		https://www.facebook.com/dsvz200/ 
+					https://web.archive.org/web/20130801182925/http://www.gstsoftware.co.nz/ 	   
+DSVZ200 				https://web.archive.org/web/20130730230114/http://www.blockypixels.com:80/ 	   
+WinVZ300				https://github.com/PhoenixInteractiveNL/emuDownloadCenter/wiki/Emulator-winvz300 	   
+
+
+(6) Arcadia Emulator 2001
+=========================
+By Gavin TUrner
+
+Arcadia-2001				https://web.archive.org/web/20051026150459/http://www.gstsoftware.co.nz/ 	   
+
+
+
+(7) SoundPaint - Jürgen Reuter
+==============================
+by: Jürgen Reuter
+Sits on Github with a youtube available showing Jurgen performing a lecture about it.
+
+Soundpaint VZ Emu			https://github.com/soundpaint/VZ200-Emulator
+video #1				https://www.youtube.com/watch?v=S65sOWSTnGA
+Video #2				https://media.ccc.de/v/gpn19-114-retrocomputing-emulator-vz200-z80
+
+
+
+
+(8) VZ200 Remake
+================
+By: Jürgen Wahlmann & Christian Wahlmann
+Is a remake of James Turners VZ200, with updates.
+
+VZ200Remake				https://github.com/cwahlmann/vz200-remake
+					https://github.com/cwahlmann/vz200
+
+
+
+(9) ZZEMU Laser 310 Emu
+=======================
+"LASER310 Emulator"
+
+ZZEMU Laser 310 emu			https://github.com/zzemu-cn/LASER310EMU
+
+
+
+
+(10) ZZEMU's FPGA
+================
+By ZZEMU
+Terrasic FPGA DE1 DE2			https://github.com/zzemu-cn/LASER310_FPGA
+Terrasic FPGA DE1 DE2 Floppy		https://github.com/zzemu-cn/LASER310_FPGA_DD20
+Terrasic FPGA base version 		https://github.com/zzemu-cn/LASER310_FPGA_BASE
+
+
+
+
+(11) VZ Emulator
+===============
+By: Paul Anderson
+"An emulator for the VZ200/VZ300 Z80 8-bit CPU based Computer. Written in c#"
+
+VZEmulator				https://github.com/PaulAnderson/VzEmulator
+
+
+
+
+
+(12) VZ-Next
+============
+by: Paul Robson. "An implementation of the TX800/VZ200/Laser200 platform for ESP32/Windows/Linux/Raspi"
+
+VZ-Next					https://github.com/paulscottrobson/vz-next
+
+
+
+
+
+(13) MISTer - Alan.
+===================
+By: Alan. "This is a MiSTer port of the core of	https://github.com/zzemu-cn/LASER310_FPGA_DD20"
+
+MISTer					https://github.com/alanswx/Laser310_MiSTer
+					https://github.com/MiSTer-devel/Laser310_MiSTer
+
+
+
+(14) JSMESS
+============
+By: Jason Scott 
+MESS
+					https://github.com/jsmess/jsmess/wiki/JSMESS-v1.0-Systems
+
+
+(15) Laser 310 Emu 
+==================
+By: Antonino Porcino.
+Written in Feb-Mar 2021.
+ 
+Laser310 java website			http://zylascope.com/laser-310-emu/
+					https://nippur72.github.io/laser310-emu/
+
+
+(16) VZ Emulator
+================
+By: Richard Chandler
+
+
+
+
+
+Other Github stuff:
+===================
+YuanB's 64k				https://github.com/yuanb/laser310_64k
+
+YuanB's DD20 Floppy drive emulator	https://github.com/yuanb/dd20emu
+
+This project is dedicated to create an Arduino UNO based Laser-200/310 DD20/DI40 Floppy drive 
+interface and drive emulator. Since at the moment this project is created, I only have a 
+Laser-200 on hand, which has relative less amount of RAM (6K) on board. The design will 
+include 16K (6264 SRAM x 2) memory expansion as well.
+
+
+Jump on to Github.com , search for 'VZ200' or 'VZ300', and keep up to date as each roll out their updates.
+Some of these VZ users are quite active.
+
+
+
+
+
+
+
+
+
+
+
+
+############################################################################################
+
+
+(H) Video and 6847
+
+-A/G Alphanumerics/Graphics 
+(Pin 35) If low you get Alphanumerics or Semigraphics, high gives you Graphics based on GM0, GM1, and GM2 
+logic levels. Since the VZ has GM0 and GM2 PCB hardwired low and GM1 high, you get 128x64 Colour Graphics 
+Two (CG2). Controlled by bit 3 of the LS174 latch at 6800-6FFF
+
+-A/S Alphanumerics/Semigraphics 
+(Pin 34) If -A/G is Lowh and -A/S is also Low, you get the Alphanumerics mode. If -A/G is Low and -A/S is 
+High, you get the Semigraphics 4 and 6 modes. Selectable by Video bit 7' so changable per 'character' / 
+video memory location. In this semigraphics character, bits 4, 5, & 6 indicate the colour of the character, 
+and bits 0, 1, 2, and 3 determine its shape. Each of the 4 least significant bits corresponds to a pixel 
+in a 2x2 matrix which occupies the same screen area as a text character. The high nibble 3 bit (D6,D5,D4) 
+hex colour code is 0x=Green, 1x=Yellow, 2x=Blue, 3x=Red, 4x=Buff, 5x=Cyan, 6x-Magenta, 7x=Orange.
+
+-Int/Ext Internal/Extranal ROM 
+(Pin 31) In Semigrapics mode it selects between SG4 and SG6 Semigraphics mode. Tied low in the VZ, so 
+internal MC6847 font ROM or Semigraphics SG4 are used. In Alphanumeric mode it selects an internal or 
+external character font ROM. For an external ROM to be used, a 74LS161 counter is used to create the 4 
+ExtROM address lines for each of the 12 visible lines per character
+
+Inv Inverse (Pin 32) In Alphanumeric mode it inverts the colour of the Alphanumerics. Also works for external 
+character font ROM, but has no effect for any Semigraphics or Graphics mode. Selectable by Video bit 6' so 
+changable per Alphanumerics / video memory location.
+
+GM0, GM1, GM2 Graphics Mode 0-2 (Pins 30, 29, 27) No effect when in Alphanumerics or Semigraphics mode but 
+allows you select 1 of 8 graphics modes from 64x64 to 256x192 in 2 or 4 colours. Stuck at 128x64 at 4 colours 
+in the VZ due to the PCB being wired that way. There are some mods around that disconnect these lines from the 
+PCB and control them to get the extra modes, but extra Video RAM is needed (Up to 6k instead of standard 2k) 
+which would be controlled by MC6847 Address lines DA11 (pin 20) DA12 (Pin 21)
+
+CSS Colour Set Select (Pin 39) Selects Alphanumeric colours green on a dark green background, or orange on a 
+dark orange background. Changes between 2 colour sets in Graphics mode. Can be inverted using the INV signal 
+on Video bit 6'. Controlled by bit 4 of the LS174 latch at 6800-6FFF
+
+
+
+; 					GERMAN MOD
+;					==========
+;
+;	ld	a, $ef		; Dark Green and Light green  	(COLOUR ,0)
+;	ld	(30779), a
+;	ld	($6800), a
+;
+;
+;	ld	a, $ff		; Black and white  		(COLOUR ,1)
+;	ld	(30779), a
+;	ld	($6800), a
+;
+;
+;
+;* Correct in VZEM will be inverse on real hardware.
+;* COrrect on real hardware will be inversed on real hardware.
+
+
+
+video timings
+=============
+PAL VZ200 50Hz sync generation 312 lines per field
+PAL VZ300 50Hz sync generation 310 lines per field
+50 frames per second = 1 frame every 1/50 second = 1 frame every 0.02 seconds (20 ms)
+312 scanlines every 0.02 seconds = one scanline every 0.02/312 seconds = 0.000064 (64 us)
+The timings for each scanline is:
+front porch 1.8 us
+back porch 4.5 us *** horizontal sync ends at the start of the back porch
+color burst 2.7 us
+left border 7.5 us
+display 40 us
+right border 7.5 us
+TOTAL - 64 us
+It takes EXACTLY 228 clock cycles to draw a horizontal scanline. So above in clock cycles is:
+front porch 6.4125
+back porch 16.03125
+color burst 9.61875
+left border 26.71875
+display 142.5
+right border 26.71875
+TOTAL - 228 clock cycles
+
+length of one frame is 71136 clock cycles
+
+
+VZ200 inserts 50 additional blank lines (48 on the VZ300) for each frame, 
+half at top and half at bottom. 
+
+MC6847_VBLANK_LINES (13)	/* 13 lines vblank at top of screen */
+MC6847_TOP_BORDER_LINES (25)	/* 25 lines top border */
+MC6847_DISPLAY_LINES (192)	/* 192 lines visible display area */
+MC6847_BOTTOM_BORDER_LINES (26)	/* 26 lines bottom border */
+MC6847_VRETRACE_LINES (6)	/* 6 'lines' for vertical retrace */
+MC6847_ALL_LINES (262)		/* all of the above */
+MC6847_TICKS_PER_SCANLINE (228) /* number of ticks per scan line */
+
+
+
+
+(I) POKES!!!
+
+print peek(30969)+256*peek(30970)-4	Memory location of the last character you typed into the last program line.
+Poke 30776, 255		Inverse on.
+Poke 30776, 0 		Inverse off.
+Poke 30779, 32 		Sound on + keyboard beep on.
+Poke 30779, 9 		Sound on + clear screen.
+Poke 30779, 0 		Sound off + keyboard beep off.
+POKE 30744, 0		White / Light green background (VZ300 screen)
+POKE 30744, 1		Black / Dark green background. (VZ200 screen)
+POKE 30777, 1		Disable Interrupts for PRINT statement.
+POKE 31003, 0		TRON.
+POKE 31003, 173		TROFF.
+POKE 31469,134		RANDOMIZE
+POKE 31469,153		DEFINT	- Defines all variables starting with A or B as being integers.
+POKE 31469,154		DEFSNG	- Defines all variables starting with C or D as being single precision
+POKE 31469,155		DEFDBL 	- Defines all variables starting with E or F as being double precision
+POKE 31469,192		VARPTR	- Used to locate the memory address of a variable
+POKE 31470,196		STRING$	- Will print 12 asterisks.
+POKE 31470,200		MEM	- Tels the amount of unused memory left
+POKE 31470,218		FRE	- Tells the number of unused bytes left in the reserved string space.
+POKE 31469,239		CINT 	- Removes all digits after the decimal point.
+POKE 31469, 240		CSNG	- Converts numeric variable from double to single.
+POKE 31469, 214		CDBL	- Converts numeric variable from single to double.
+POKE 31471, 242		FIX	- Removes all digits to the right of the decimal point.
+POKE 31470, 194		ERL	- Returns the line number from which program branched to error routine.
+POKE 31470, 195		ERR	- Returns error code.
+POKE 31469, 161		ON	- Used with ON GOTO, ON GOSUB, ON ERROR
+POKE31469,161;31470,158	ERROR	- Used as ON ERROR GOTO line no.
+POKE 31469, 159		RESUME	- After error return to the line after the one producing the error.
+POKE 31469, 182		DELETE 	- Deletes block of BASIC line numbers. Use with line '0 D-x' (x=end line number)
+POKE 31479, 183		AUTO	- Automatically prints line numbers.
+POKE 31469, 183		AUTO 	- Automatically prints line numbers; will also print any existing lines found.
+POKE 30945,175		AUTO contine - IF CTRL-BREAK used, this will continue.
+POKE 30876, 		Output device. 0=video. 1=printer. 255=cassette.
+
+
+
+
+
+
+(J) Current Contact Info Stuffs
+-------------------------------
+
+VZ200/Vz300 Fans Facebook Group.
+URL:
+
+
+
+Old Yahoogroups list that was in existance for just on 20 years, that is no more.
+Posting to the vzemu mailing list:	vzemu@yahoogroups.com
+Subscribing to the vzemu list:		subscribe-vzemu@yahoogroups.com
+The dope who wrote this small FAQ:	bushy555@gmail.com				
+
+											/dave
+
+
+
+(K) List of Extended DOS and EXtended BASIC's
+
+
+a) Extended DOS 1.3 - Dave Mitchell
+================================
+MERGE 	- Merges basic files from disk with program in memory.
+DIRA	- See example:	T:MENU 		B:PATCH3.1	B:WORDPROC	
+			B:EXTDOS E	B:EXTDOS R	W:DOS-INST
+LDIRA	- As above, but to screen and printer.
+DIRB	- See example:	T:MENU	   01 00 7AE9 801B 0532
+			B:PATCH3.1 01 0B 7200 771F 051F
+LDIRB	- As above, but to screen and printer.
+STATUSA	- Prints free disk space to screen on one line.
+LSTATUSA- As above, but to screen and printer
+	   534 RECORDS FREE   63.500K FREE
+OLD	- Restores a program after using the NEW command.
+OLD.	- Prints Start, End and Length of program in memory in HEX.
+DEC XXXX - converts decimal to hex.
+HEX XXXX - converts hex to decimal.
+MENU	- Loads and executes binary or text program called "MENU" from disk
+CODE	- simplifies using printer control codes directly or from within a program.
+LTAB	- Is for setting of left margin.
+MOVE	- Moves BASIC file from disk to chosen memory address.
+UPD	- Erases old file and saves with same file name. (UPDATE)
+
+
+
+b) Russell Harrison Extended Basic version 1.
+=============================================
+commands:
+&B, &H, AUTO, BACKGR, BDEC, BEEP, BIN$, CALL, 
+CDBL, CINT, CSNG, CIRCLE, COMPRESS, CSR, DEF FN, 
+DEF USR, DEFTBL, DEFINT, DEFSNG, DEFSTR, DELETE, 
+DRAW, ERALL, ERASE, ERL, ERR, FILE$, FILL, FIND, 
+FIX, FREE, GET, HDEC, HEX$, INPUT!, INPUT@, 
+INPUT USING, INSTR, LDIR, LENGTH, MERGE, MID$(...)=,
+MOVE, NEWDISK, NOISE, OLD, ON...GOTO, ONERR..GOTO, 
+PLOT, RANDOMISE, RENUM, REP$, RESTORE, RESUME, 
+SFREE, SPEED, STR INPUT, TROFF, TRON, TYPE$, 
+UNERA, VARPTR, WPEEK, WPOKE, XDIR, XDRAW
+
+c) Russell Harrison Extended Basic version 2.
+==========================================
+All above, with:
+LPEN, MLOAD, MSAVE, REP, REPEAT, UNTIL, WEND, WHILE.
+
+
+d) EXBv2.5 by Steve Olney
+=========================
+
+- to be filled in-
+
+
+e) Extnded Basic by W. Obrist.
+==============================
+
+- to be filled in-
+
+
+f) Extended BASIC by Gerhard Wolfe (Sanyo in Germany)
+=====================================================
+
+AUTO, DELETE, TRON, TROFF, MEM, FRE, ERROR, ERR, ERL, DEFINT, 
+DEFSGN, DEFDBL, DEFSTR, RANDOM, ON, RESUME, VARPTR, SYSTEM,STRING $, 
+POS, YLOAD, MERGE, COMPRESS, RENEW, CINT, CSNG,CDBL, FIX, CALL, MEMSIZE. 
+RENUM, PLOT, NPLOT, CIRCLE, RECT, PAINT, CPOINT, GCLS, LPEN.
+
+g) Extended BASIC v1.5c (China)
+===============================
+
+- to be filled in-
+
+
+
+
+
+
+
+(L) Obscure Code.
+=================
+	; Code to determine if CPU = Zilog Z80 or NEC D780C.
+
+	; F3 and F5 are undocumented bits 3 and 5 
+	; of the flag register
+
+	xor	a
+	dec	a		; F3 = 1, f5 = 1
+	ld	a, 0		; A=0
+	scf			; on Z80: F3 |= A, F5 |= A, on NEC: F3=A & ?, F5=A & ?
+	push	af
+	dec	sp
+	pop	af
+	inc	sp
+	and	%00101000
+
+	; z  = NEC D780C
+	; NZ = Z80
+

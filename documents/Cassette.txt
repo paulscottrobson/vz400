@@ -1,0 +1,11 @@
+Cassette hack.
+
+Intercept at 366D
+
+	At this point the file name is in $7A9D as ASCIIZ.
+	Load file in, run if machine code (BASIC first, should be $78A4 load address.
+	BASIC End Pointer ($78F9) <= Next free byte.
+	Jump to $36CF after patch.
+	Error PC=$1E4A FC_ERROR
+
+

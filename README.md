@@ -1,2 +1,2 @@
-# vz410
-Next Generation VZ310 backwards compatible
+# vz-next
+VZ/Laser/Texet emulator, hardware and software

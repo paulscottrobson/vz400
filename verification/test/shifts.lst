@@ -1,0 +1,19 @@
+              	; --------------------------------------
+              	; zasm: assemble "shifts.asm"
+              	; date: 2021-10-07 18:10:19
+              	; --------------------------------------
+
+
+0000:         		org 0
+0000: 21080E  		ld hl,$0E08
+0003: CB25    		sla l
+0005: CB3C    		srl h
+0007: CB1D    		rr l
+0009: CB3C    		srl h
+000B: CB1D    		rr l
+000D: CB3C    		srl h 
+000F: CB1D    		rr l
+
+
+total time: 0.0005 sec.
+no errors
